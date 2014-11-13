@@ -9,9 +9,11 @@ import sys
 import keyring
 import pexpect
 
+DEFAULT_SERVICE_NAME = 'ssh_py_default'
+
 def getpassword(service, username):
     ''' Get password from keychain '''
-    
+
     password = keyring.get_password(service, username)
 
     while not password:
@@ -34,14 +36,17 @@ def setpassword(service, username, password):
     ''' Save password in keychain '''
 
     if not keyring.get_password(service, username):
-        print "Successful login - saving password for user %s under keychain service '%s'" % (username, keychainservice)
-        keyring.set_password(keychainservice, username, password)
+        print "Successful login - saving password for user %s under keychain service '%s'" % (username, service)
+        keyring.set_password(service, username, password)
 
-    
-def ssh(username, host, keychainservice="ssh_py_default", port=22):
+def ssh(username, host, keychainservice=DEFAULT_SERVICE_NAME, port=22):
     ''' Automate sending password when the server has public key auth disabled '''
 
-    password = getpassword(keychainservice, username)
+    # account stored in keychain should not be identicial for all hosts with
+    # the same username.
+    account = "%s@%s"%(username, host)
+
+    password = getpassword(keychainservice, account)
 
     print "Connecting to %s@%s" % (username, host)
 
@@ -65,7 +70,7 @@ def ssh(username, host, keychainservice="ssh_py_default", port=22):
     # assume we see a shell prompt ending in $ to denote successful login:
     print "Waiting for $ shell prompt terminator to confirm login..."
     if child.expect(r'\$') == 0:
-        setpassword(keychainservice, username, password)
+        setpassword(keychainservice, account, password)
 
     # give control to the human.
     child.sendline()
@@ -74,7 +79,7 @@ def ssh(username, host, keychainservice="ssh_py_default", port=22):
 if __name__=='__main__':
     parser = optparse.OptionParser(usage="ssh.py [options] <username@>host")
 
-    parser.add_option("-k", "--keychainservice", dest="keychainservice", help="Keychain service name to store password under", 
+    parser.add_option("-k", "--keychainservice", dest="keychainservice", help="Keychain service name to store password under",
                      default="ssh_py_default")
     parser.add_option("-p", "--port", dest="port", help="SSH port", default=22)
 
