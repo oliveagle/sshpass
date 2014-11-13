@@ -5,6 +5,7 @@ This is forked from [https://github.com/bdelliott/sshpass](https://github.com/bd
 
 * 2014Nov13 FIXED: "global name 'keychainservice' is not defined" error on line 37. 
 * 2014Nov13 FIXED: store password in keychain with the account in the form of `username@host`
+* 2014Nov14 Feature: add a naive solution to support `sftp`.
 
 If you need to login to a server that, for whatever reason, has public key auth disabled, you can use this script
 to automate login via username and password.

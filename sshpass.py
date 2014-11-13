@@ -39,7 +39,7 @@ def setpassword(service, username, password):
         print "Successful login - saving password for user %s under keychain service '%s'" % (username, service)
         keyring.set_password(service, username, password)
 
-def ssh(username, host, keychainservice=DEFAULT_SERVICE_NAME, port=22):
+def ssh(username, host, keychainservice=DEFAULT_SERVICE_NAME, port=22, sftp=False):
     ''' Automate sending password when the server has public key auth disabled '''
 
     # account stored in keychain should not be identicial for all hosts with
@@ -50,7 +50,10 @@ def ssh(username, host, keychainservice=DEFAULT_SERVICE_NAME, port=22):
 
     print "Connecting to %s@%s" % (username, host)
 
-    cmd = "/usr/bin/ssh -p%d %s@%s" % (port, username, host)
+    if sftp:
+        cmd = "/usr/bin/sftp -oPort=%d %s@%s" % (port, username, host)
+    else:
+        cmd = "/usr/bin/ssh -p%d %s@%s" % (port, username, host)
     child = pexpect.spawn(cmd)
 
     (rows, cols) = gettermsize()
@@ -67,10 +70,15 @@ def ssh(username, host, keychainservice=DEFAULT_SERVICE_NAME, port=22):
     print "Sending password"
     child.sendline(password)
 
-    # assume we see a shell prompt ending in $ to denote successful login:
-    print "Waiting for $ shell prompt terminator to confirm login..."
-    if child.expect(r'\$') == 0:
-        setpassword(keychainservice, account, password)
+    if sftp:
+        print "Waiting for `sftp>` prompt to confirm login..."
+        if child.expect(r'sftp>') == 0:
+            setpassword(keychainservice, account, password)
+    else:    
+        # assume we see a shell prompt ending in $ to denote successful login:
+        print "Waiting for $ shell prompt terminator to confirm login..."
+        if child.expect(r'\$') == 0:
+            setpassword(keychainservice, account, password)
 
     # give control to the human.
     child.sendline()
@@ -82,6 +90,8 @@ if __name__=='__main__':
     parser.add_option("-k", "--keychainservice", dest="keychainservice", help="Keychain service name to store password under",
                      default="ssh_py_default")
     parser.add_option("-p", "--port", dest="port", help="SSH port", default=22)
+
+    parser.add_option("--sftp", dest="sftp", help="connect as sftp", default=False)
 
     (opts, args) = parser.parse_args()
 
@@ -96,7 +106,7 @@ if __name__=='__main__':
         username = os.getlogin() # default to username on the current host.
         host = host_str
 
-    ssh(username, host, port=int(opts.port), keychainservice=opts.keychainservice)
+    ssh(username, host, port=int(opts.port), keychainservice=opts.keychainservice, sftp=opts.sftp)
 
 
 
